@@ -69,7 +69,7 @@ export PROXMOX_VE_API_TOKEN="terraform@pve!terraform-token=your-secret-token"
 ### 1. Clone and configure
 
 ```bash
-git clone https://github.com/sylvainfano/homelab-iac.git
+git clone https://github.com/sylvain-fano/homelab-iac.git
 cd homelab-iac
 
 # Copy example files
@@ -211,7 +211,7 @@ After Talos VMs are created, follow these steps to bootstrap Kubernetes:
 
 ## Related Resources
 
-- [Medium Article: Building a Production-Grade Kubernetes Homelab](https://medium.com/@sylvainfano)
+- [Medium Article: Building a Production-Grade Kubernetes Homelab](https://medium.com/@sylvain.fano)
 - [Talos Linux Documentation](https://www.talos.dev/docs/)
 - [Proxmox VE Documentation](https://pve.proxmox.com/pve-docs/)
 
