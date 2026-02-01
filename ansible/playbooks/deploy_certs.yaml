@@ -1,0 +1,143 @@
+---
+# Deploy TLS certificates to homelab services
+# Exports the unified wildcard cert from Kubernetes and installs on each host
+#
+# Usage:
+#   ansible-playbook playbooks/deploy_certs.yaml
+#   ansible-playbook playbooks/deploy_certs.yaml --limit proxmox-node-1,proxmox-node-2
+#   ansible-playbook playbooks/deploy_certs.yaml --tags export  # Just export, no deploy
+#
+# Prerequisites:
+#   - kubectl configured with access to your K8s cluster
+#   - SSH access to all target hosts
+#   - Certificate secret exists in the specified namespace
+#
+- name: Export certificate from Kubernetes
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  tags:
+    - export
+    - always
+  vars:
+    cert_namespace: "{{ hostvars['localhost']['cert_namespace'] | default('traefik') }}"
+    cert_secret: "{{ hostvars['localhost']['cert_secret'] | default('wildcard-tls') }}"
+    cert_temp_dir: /tmp/certs
+    kubeconfig: "{{ lookup('env', 'KUBECONFIG') | default(lookup('env', 'HOME') + '/.kube/config') }}"
+    domain: "{{ hostvars['localhost']['domain'] | default('homelab.local') }}"
+  tasks:
+    - name: Create temp directory for certificates
+      ansible.builtin.file:
+        path: "{{ cert_temp_dir }}"
+        state: directory
+        mode: "0700"
+
+    - name: Export certificate from Kubernetes secret
+      ansible.builtin.shell: |
+        kubectl --kubeconfig {{ kubeconfig }} get secret -n {{ cert_namespace }} {{ cert_secret }} \
+          -o jsonpath='{.data.tls\.crt}' | base64 -d > {{ cert_temp_dir }}/{{ domain | replace('.', '-') }}.crt
+        kubectl --kubeconfig {{ kubeconfig }} get secret -n {{ cert_namespace }} {{ cert_secret }} \
+          -o jsonpath='{.data.tls\.key}' | base64 -d > {{ cert_temp_dir }}/{{ domain | replace('.', '-') }}.key
+      changed_when: true
+
+    - name: Create combined cert for lighttpd
+      ansible.builtin.shell: |
+        cat {{ cert_temp_dir }}/{{ domain | replace('.', '-') }}.crt {{ cert_temp_dir }}/{{ domain | replace('.', '-') }}.key > {{ cert_temp_dir }}/{{ domain | replace('.', '-') }}-combined.pem
+      changed_when: true
+
+    - name: Display exported certificates
+      ansible.builtin.debug:
+        msg: "Certificates exported to {{ cert_temp_dir }}"
+
+- name: Deploy certificates to Proxmox hosts
+  hosts: proxmox
+  gather_facts: false
+  tags:
+    - proxmox
+  vars:
+    cert_temp_dir: /tmp/certs
+    domain: "{{ hostvars['localhost']['domain'] | default('homelab.local') }}"
+  tasks:
+    - name: Copy certificate to Proxmox node
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - src: "{{ cert_temp_dir }}/{{ domain | replace('.', '-') }}.crt"
+          dest: "/etc/pve/nodes/{{ pve_node_name }}/pveproxy-ssl.pem"
+          mode: "0644"
+        - src: "{{ cert_temp_dir }}/{{ domain | replace('.', '-') }}.key"
+          dest: "/etc/pve/nodes/{{ pve_node_name }}/pveproxy-ssl.key"
+          mode: "0640"
+      notify: Restart pveproxy
+
+  handlers:
+    - name: Restart pveproxy
+      ansible.builtin.systemd:
+        name: pveproxy
+        state: restarted
+
+- name: Deploy certificate to PBS
+  hosts: pbs
+  gather_facts: false
+  tags:
+    - pbs
+  vars:
+    cert_temp_dir: /tmp/certs
+    domain: "{{ hostvars['localhost']['domain'] | default('homelab.local') }}"
+  tasks:
+    - name: Copy certificate to PBS
+      ansible.builtin.copy:
+        src: "{{ item.src }}"
+        dest: "{{ item.dest }}"
+        mode: "{{ item.mode }}"
+      loop:
+        - src: "{{ cert_temp_dir }}/{{ domain | replace('.', '-') }}.crt"
+          dest: /etc/proxmox-backup/proxy.pem
+          mode: "0644"
+        - src: "{{ cert_temp_dir }}/{{ domain | replace('.', '-') }}.key"
+          dest: /etc/proxmox-backup/proxy.key
+          mode: "0640"
+      notify: Restart proxmox-backup-proxy
+
+  handlers:
+    - name: Restart proxmox-backup-proxy
+      ansible.builtin.systemd:
+        name: proxmox-backup-proxy
+        state: restarted
+
+- name: Deploy certificate to Pi-hole
+  hosts: pihole
+  gather_facts: false
+  tags:
+    - pihole
+  vars:
+    cert_temp_dir: /tmp/certs
+    domain: "{{ hostvars['localhost']['domain'] | default('homelab.local') }}"
+  tasks:
+    - name: Copy combined certificate
+      ansible.builtin.copy:
+        src: "{{ cert_temp_dir }}/{{ domain | replace('.', '-') }}-combined.pem"
+        dest: /etc/lighttpd/combined.pem
+        mode: "0640"
+      notify: Restart lighttpd
+
+    - name: Ensure SSL is configured in lighttpd
+      ansible.builtin.blockinfile:
+        path: /etc/lighttpd/external.conf
+        create: true
+        mode: "0644"
+        marker: "# {mark} ANSIBLE MANAGED - SSL CONFIG"
+        block: |
+          $SERVER["socket"] == ":443" {
+              ssl.engine = "enable"
+              ssl.pemfile = "/etc/lighttpd/combined.pem"
+          }
+      notify: Restart lighttpd
+
+  handlers:
+    - name: Restart lighttpd
+      ansible.builtin.systemd:
+        name: lighttpd
+        state: restarted

@@ -1,0 +1,15 @@
+---
+# Install qemu-guest-agent on VMs for better Proxmox integration
+# Enables: disk usage reporting, proper shutdown, IP reporting
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yaml playbooks/qemu_guest_agent.yaml
+#
+# Note: Only works on VMs, not LXC containers
+# Note: Talos Linux nodes have immutable OS - agent must be enabled differently
+
+- name: Install qemu-guest-agent on VMs
+  hosts: vms
+  become: true
+  roles:
+    - qemu_guest_agent

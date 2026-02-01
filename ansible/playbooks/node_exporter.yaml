@@ -1,0 +1,15 @@
+---
+# Install node_exporter on all VMs and LXCs for Prometheus monitoring
+#
+# Usage:
+#   ansible-playbook -i inventory/hosts.yaml playbooks/node_exporter.yaml
+#
+# Prerequisites:
+#   - SSH access to all hosts (root or sudo)
+#   - DNS resolution for *.homelab.local or update inventory with IPs
+
+- name: Install node_exporter on all monitored hosts
+  hosts: node_exporter
+  become: true
+  roles:
+    - node_exporter

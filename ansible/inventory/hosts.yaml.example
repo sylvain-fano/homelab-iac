@@ -1,0 +1,50 @@
+all:
+  children:
+    # Proxmox hypervisors - bare metal hosts
+    proxmox:
+      hosts:
+        proxmox-node-1:
+          ansible_host: 192.168.1.2
+          pve_node_name: proxmox-node-1
+        proxmox-node-2:
+          ansible_host: 192.168.1.3
+          pve_node_name: proxmox-node-2
+
+    # VMs with full OS - install node_exporter
+    vms:
+      hosts:
+        # Add your VMs here
+        # example-vm:
+        #   ansible_host: example.homelab.local
+        #   tls_service: apache
+
+    # LXC containers - lighter footprint
+    lxc:
+      hosts:
+        pihole:
+          ansible_host: pihole.homelab.local
+          tls_service: lighttpd
+        pbs:
+          ansible_host: pbs.homelab.local
+          tls_service: pbs
+
+    # All hosts requiring TLS certificate deployment
+    tls_hosts:
+      children:
+        proxmox:
+        lxc:
+        vms:
+
+    # All nodes to monitor
+    node_exporter:
+      children:
+        vms:
+        lxc:
+
+  vars:
+    ansible_user: root
+    ansible_python_interpreter: /usr/bin/python3
+    # Domain configuration
+    domain: homelab.local
+    cert_namespace: traefik
+    cert_secret: wildcard-tls

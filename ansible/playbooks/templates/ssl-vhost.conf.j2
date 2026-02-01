@@ -1,0 +1,21 @@
+<VirtualHost *:443>
+    ServerName {{ server_name }}
+    {% if server_alias is defined %}
+    ServerAlias {{ server_alias }}
+    {% endif %}
+
+    DocumentRoot {{ document_root | default('/var/www/html') }}
+
+    SSLEngine on
+    SSLCertificateFile {{ ssl_cert_path | default('/etc/apache2/ssl/server.crt') }}
+    SSLCertificateKeyFile {{ ssl_key_path | default('/etc/apache2/ssl/server.key') }}
+
+    <Directory {{ document_root | default('/var/www/html') }}>
+        Options -Indexes +FollowSymLinks
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    ErrorLog ${APACHE_LOG_DIR}/{{ server_name }}-ssl-error.log
+    CustomLog ${APACHE_LOG_DIR}/{{ server_name }}-ssl-access.log combined
+</VirtualHost>

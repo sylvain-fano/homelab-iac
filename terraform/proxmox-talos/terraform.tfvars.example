@@ -1,0 +1,48 @@
+# Proxmox connection
+proxmox_endpoint = "https://192.168.1.2:8006"
+proxmox_insecure = true
+
+# Talos configuration
+talos_version     = "v1.9.5"
+talos_iso_storage = "local"
+
+# Control plane nodes
+control_planes = [
+  {
+    name        = "talos-cp-1"
+    target_node = "proxmox-node-1"
+    ip_address  = "192.168.1.201"
+    gateway     = "192.168.1.1"
+    cpu_cores   = 2
+    memory_mb   = 4096
+    disk_gb     = 20
+  },
+  {
+    name        = "talos-cp-2"
+    target_node = "proxmox-node-2"
+    ip_address  = "192.168.1.202"
+    gateway     = "192.168.1.1"
+    cpu_cores   = 2
+    memory_mb   = 4096
+    disk_gb     = 20
+  },
+  {
+    name        = "talos-cp-3"
+    target_node = "proxmox-node-1"
+    ip_address  = "192.168.1.203"
+    gateway     = "192.168.1.1"
+    cpu_cores   = 2
+    memory_mb   = 4096
+    disk_gb     = 20
+  },
+]
+
+# Kubernetes
+cluster_name = "talos-homelab"
+cluster_vip  = "192.168.1.200"
+
+# Network
+network_bridge = "vmbr0"
+
+# Storage
+vm_storage = "local-lvm"

@@ -1,0 +1,18 @@
+# Proxmox connection
+proxmox_endpoint = "https://192.168.1.2:8006"
+proxmox_insecure = true
+
+# PBS configuration
+pbs_target_node = "proxmox-node-1"
+pbs_hostname    = "pbs"
+pbs_memory_mb   = 2048
+pbs_cpu_cores   = 2
+pbs_disk_gb     = 8
+
+# Storage
+lxc_storage      = "local-lvm"
+template_storage = "local"
+
+# Network
+network_bridge = "vmbr0"
+dns_servers    = ["1.1.1.1", "8.8.8.8"]

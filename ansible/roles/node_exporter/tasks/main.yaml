@@ -1,0 +1,20 @@
+---
+- name: Install node_exporter package (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: prometheus-node-exporter
+    state: present
+    update_cache: true
+  when: ansible_os_family == "Debian"
+
+- name: Ensure node_exporter is started and enabled
+  ansible.builtin.systemd:
+    name: prometheus-node-exporter
+    state: started
+    enabled: true
+
+- name: Verify node_exporter is responding
+  ansible.builtin.uri:
+    url: "http://localhost:9100/metrics"
+    return_content: false
+  register: node_exporter_check
+  failed_when: node_exporter_check.status != 200
